@@ -14,7 +14,11 @@ class Killer:
     def __init__(self, interval=1):
         self.ival = interval
         self.runs = False
-        self.blacklist = load(open(BLACKLIST_PATH, "r"))
+        self.blacklist = load(open("blacklist.json", "r"))
+        for check in self.blacklist.keys():
+            self.blacklist[check] = [
+                entry.replace("\\\\", "\\") for entry in self.blacklist[check]
+            ]
         self.thread = Thread(target=self._run, daemon=True)
 
     def start(self):
@@ -31,10 +35,11 @@ class Killer:
 
     def _kill(self):
         for proc in psutil.process_iter():
-            proc_info = proc.as_dict(["name"])
-            for name in self.blacklist:
-                if proc_info["name"] == name:
+            proc_info = proc.as_dict([*self.blacklist.keys()])
+            for check in self.blacklist.keys():
+                if proc_info[check] in self.blacklist[check]:
                     proc.kill()
+                    break
 
 
 class AddOn:
