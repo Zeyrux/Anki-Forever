@@ -1,39 +1,42 @@
-import sys
-import psutil
-import base64
-
-from PyQt6.QtWidgets import QApplication, QMainWindow
+from aqt import gui_hooks, mw
+from aqt.utils import showInfo
 
 
-STYLE_APP = "Fusion"
+class AddOn:
+    def __init__(self, important_decks: list[str]) -> None:
+        self.started = False
+        self.important_decks = [deck.replace("::", "") for deck in important_decks]
+
+    def start(self) -> None:
+        self.dids = []
+        self.started = True
+        for deck in self.important_decks:
+            self.dids.append(
+                mw.col.db.first(f"SELECT id FROM decks WHERE name='{deck}'")[0]
+            )
+        gui_hooks.overview_did_refresh.append(self.my_func)
+
+    def my_func(self, *args):
+        finished = True
+        for did in self.dids:
+            if (
+                mw.col.db.first(
+                    f"SELECT COUNT(due) FROM cards WHERE did={did} AND cards.due <= {mw.col.sched.today}"
+                )[0]
+                != 0
+            ):
+                finished = False
+                break
+        if finished:
+            showInfo("FINISHED for today")
+        else:
+            showInfo("DO SOME WORK LAZY DUDE!")
 
 
-# CHECKS = ["exe", "name"]
-# BLACKLIST = {
-#     "exe": [
-#         "C:\\Program Files\\WindowsApps\\Microsoft.Office.OneNote_16001.14326.21146.0_x64__8wekyb3d8bbwe\\onenoteim.exe"
-#     ],
-#     "name": ["onenoteim.exe"],
-# }
+class App:
+    def __init__(self, important_decks: list[str]) -> None:
+        self.add_on = AddOn(important_decks)
 
-# for proc in psutil.process_iter():
-#     proc_info = proc.as_dict(CHECKS)
-#     for check in CHECKS:
-#         if proc_info[check] in BLACKLIST[check]:
-#             proc.kill()
-
-# auf anki plugin gehen (eher nicht PyQt6 App)
-class App(QMainWindow):
-    def __init__(self):
-        super().__init__()
-
-
-def create_app():
-    app = QApplication(sys.argv)
-    window = App()
-    window.show()
-    app.setStyle(STYLE_APP)
-    app.exec()
-
-
-create_app()
+    def start(self):
+        if not self.add_on.started:
+            self.add_on.start()
