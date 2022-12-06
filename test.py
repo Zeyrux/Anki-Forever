@@ -1,4 +1,5 @@
-import datetime
+import psutil
 
-a = datetime.date(2022, 12, 4)
-print(a.timetuple())
+for proc in psutil.process_iter():
+    proc_info = proc.as_dict(["exe", "name"])
+    print(proc_info)

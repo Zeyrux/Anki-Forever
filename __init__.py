@@ -1,5 +1,5 @@
 from aqt import gui_hooks
-from AnkiForever import App
+from .AnkiForever import App
 
 IMPORTANT_DECK_PATH = [
     "ENG::Vocab::English LK::Eng 11 aims and ambitious",
