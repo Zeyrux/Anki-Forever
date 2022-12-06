@@ -1,4 +1,7 @@
 import psutil
+import os
+import atexit
+from pathlib import Path
 from threading import Thread
 from json import load
 from time import sleep
@@ -6,18 +9,23 @@ from time import sleep
 from aqt import gui_hooks, mw
 from aqt.utils import showInfo
 
-
-BLACKLIST_PATH = "blacklist.json"
+PATH_BLACKLIST_SPECIFIC = "blacklist_specific.json"
+PATH_BLACKLIST_DIRS = "blacklist_dirs.json"
+PATH_DECKS = "decks.json"
+ANKI_PATH = Path("C:\\Program Files\\Anki\\anki.exe")
 
 
 class Killer:
     def __init__(self, interval=1):
         self.ival = interval
         self.runs = False
-        self.blacklist = load(open("blacklist.json", "r"))
-        for check in self.blacklist.keys():
-            self.blacklist[check] = [
-                entry.replace("\\\\", "\\") for entry in self.blacklist[check]
+        self.blacklist_dirs = [
+            path.replace("\\\\", "\\") for path in load(open(PATH_BLACKLIST_DIRS, "r"))
+        ]
+        self.blacklist_specific = load(open(PATH_BLACKLIST_SPECIFIC, "r"))
+        for check in self.blacklist_specific.keys():
+            self.blacklist_specific[check] = [
+                entry.replace("\\\\", "\\") for entry in self.blacklist_specific[check]
             ]
         self.thread = Thread(target=self._run, daemon=True)
 
@@ -35,18 +43,26 @@ class Killer:
 
     def _kill(self):
         for proc in psutil.process_iter():
-            proc_info = proc.as_dict([*self.blacklist.keys()])
-            for check in self.blacklist.keys():
-                if proc_info[check] in self.blacklist[check]:
+            proc_info = proc.as_dict([*self.blacklist_specific.keys()])
+            for check in self.blacklist_specific.keys():
+                if proc_info[check] is None:
+                    continue
+                if proc_info[check] in self.blacklist_specific[check]:
                     proc.kill()
-                    break
+                    return
+                for dir in self.blacklist_dirs:
+                    if dir in proc_info[check]:
+                        proc.kill()
+                        return
 
 
 class AddOn:
-    def __init__(self, important_decks: list[str]) -> None:
+    def __init__(self) -> None:
         self.runs = False
         self.killer = Killer()
-        self.important_decks = [deck.replace("::", "") for deck in important_decks]
+        self.important_decks = [
+            deck.replace("::", "") for deck in load(open(PATH_DECKS, "r"))
+        ]
 
     def start(self) -> None:
         self.dids = []
@@ -57,6 +73,7 @@ class AddOn:
                 mw.col.db.first(f"SELECT id FROM decks WHERE name='{deck}'")[0]
             )
         gui_hooks.overview_did_refresh.append(self.my_func)
+        atexit.register(self.start_anki)
 
     def my_func(self, *args):
         finished = True
@@ -75,10 +92,14 @@ class AddOn:
         else:
             showInfo("DO SOME WORK LAZY DUDE!")
 
+    def start_anki(self):
+        if self.killer.runs:
+            os.startfile(ANKI_PATH)
+
 
 class App:
-    def __init__(self, important_decks: list[str]) -> None:
-        self.add_on = AddOn(important_decks)
+    def __init__(self) -> None:
+        self.add_on = AddOn()
 
     def start(self):
         if not self.add_on.runs:
