@@ -9,9 +9,10 @@ from time import sleep
 from aqt import gui_hooks, mw
 from aqt.utils import showInfo
 
-PATH_BLACKLIST_SPECIFIC = "blacklist_specific.json"
-PATH_BLACKLIST_DIRS = "blacklist_dirs.json"
-PATH_DECKS = "decks.json"
+PATH_ADDON = Path(os.path.expanduser("~"), "AppData\\Roaming\\Anki2\\addons21\\myaddon")
+PATH_BLACKLIST_SPECIFIC = Path(PATH_ADDON, "blacklist_specific.json")
+PATH_BLACKLIST_DIRS = Path(PATH_ADDON, "blacklist_dirs.json")
+PATH_DECKS = Path(PATH_ADDON, "decks.json")
 ANKI_PATH = Path("C:\\Program Files\\Anki\\anki.exe")
 
 
